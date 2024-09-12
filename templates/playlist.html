@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elegant Radio - {{ playlist.name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Raleway:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            color: #fff;
+            font-family: 'Roboto', sans-serif;
+            min-height: 100vh;
+        }
+        .navbar {
+            background-color: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+        }
+        .navbar-brand, h1, h2 {
+            font-family: 'Roboto', sans-serif;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            margin: auto;
+            max-width: 80vw;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+        }
+        .music-item {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex: 1;
+            min-height: 120px;
+            cursor: move;
+        }
+        .music-item.dragging {
+            opacity: 0.5;
+        }
+        .audio-player {
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            display: grid;
+            align-items: center;
+            gap: 15px;
+            padding: 2px;
+            flex: 1;
+        }
+        .track-info {
+            flex: 2;
+        }
+        .audio-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+        }
+        .audio-controls button {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 5px;
+            padding: 8px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .audio-controls button:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+        .volume-control input[type="range"] {
+            width: 80px;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 5px;
+            overflow: hidden;
+            position: relative;
+        }
+        .progress-bar .progress {
+            height: 100%;
+            background: #dc2430;
+            width: 0;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+                .music-item {
+            /* Existing styles */
+            cursor: move;
+        }
+        .music-item.dragging {
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">Elegant Radio</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/add_music/{{ playlist.id }}" class="nav-link">Add Music</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Logout</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <div class="card mb-4 p-4">
+            <div class="card-body">
+                <h1 class="card-title mb-4 text-center">Playlist: {{ playlist.name }}</h1>
+                
+                <h2 class="mb-3 text-center">Tracks:</h2>
+                {% if musics %}
+                    <ul id="music-list" class="music-list">
+                        {% for music in musics %}
+                            <li class="music-item" draggable="true" data-id="{{ music.id }}">
+                                <div class="audio-player mx-auto">
+                                    <div class="track-info">
+                                        <h4 class="mb-0">{{ music.name }}</h4>
+                                        <span>ID: {{ loop.index }}</span>
+                                    </div>
+                                    <div class="audio-controls">
+                                        <button class="play-button">
+                                            <i class="fas fa-play"></i>
+                                        </button>
+                                        <button class="pause-button" style="display: none;">
+                                            <i class="fas fa-pause"></i>
+                                        </button>
+                                        <div class="volume-control">
+                                            <input type="range" min="0" max="100" value="100">
+                                        </div>
+                                    </div>
+                                    <audio id="audio-{{ loop.index }}" src="{{ url_for('uploaded_file', filename=music.music) }}" type="audio/mpeg" data-next="{{ loop.index + 1 }}"></audio>
+                                    <div class="progress-bar">
+                                        <div class="progress"></div>
+                                    </div>
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-center">No music available.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const musicList = document.getElementById('music-list');
+
+            musicList.addEventListener('dragstart', (e) => {
+                if (e.target && e.target.classList.contains('music-item')) {
+                    e.target.classList.add('dragging');
+                }
+            });
+
+            musicList.addEventListener('dragend', (e) => {
+                if (e.target && e.target.classList.contains('music-item')) {
+                    e.target.classList.remove('dragging');
+                    saveOrder();
+                }
+            });
+
+            musicList.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const draggingItem = document.querySelector('.dragging');
+                const closestItem = getClosestItem(musicList, e.clientY);
+                if (closestItem) {
+                    musicList.insertBefore(draggingItem, closestItem);
+                } else {
+                    musicList.appendChild(draggingItem);
+                }
+            });
+
+            function getClosestItem(container, y) {
+                const items = [...container.querySelectorAll('.music-item:not(.dragging)')];
+                return items.reduce((closest, item) => {
+                    const box = item.getBoundingClientRect();
+                    const offset = y - box.top - box.height / 2;
+                    if (offset < 0 && offset > closest.offset) {
+                        return { offset: offset, element: item };
+                    } else {
+                        return closest;
+                    }
+                }, { offset: Number.NEGATIVE_INFINITY }).element;
+            }
+
+            function saveOrder() {
+                const items = [...musicList.querySelectorAll('.music-item')];
+                const order = items.map(item => item.dataset.id);
+                fetch('/reorder', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ order: order })
+                });
+            }
+
+            document.querySelectorAll('.play-button').forEach(button => {
+                button.addEventListener('click', function() {
+                    const audio = this.closest('.music-item').querySelector('audio');
+                    playAudio(audio);
+                    this.style.display = 'none';
+                    this.nextElementSibling.style.display = 'inline';
+                });
+            });
+
+            document.querySelectorAll('.pause-button').forEach(button => {
+                button.addEventListener('click', function() {
+                    const audio = this.closest('.music-item').querySelector('audio');
+                    audio.pause();
+                    this.style.display = 'none';
+                    this.previousElementSibling.style.display = 'inline';
+                });
+            });
+
+            function playAudio(audio) {
+                document.querySelectorAll('audio').forEach(a => {
+                    if (a !== audio) {
+                        a.pause();
+                        a.currentTime = 0;
+                        const playButton = a.closest('.music-item').querySelector('.play-button');
+                        playButton.style.display = 'inline';
+                        const pauseButton = a.closest('.music-item').querySelector('.pause-button');
+                        pauseButton.style.display = 'none';
+                    }
+                });
+                audio.play();
+                audio.addEventListener('ended', function() {
+                    const nextIndex = parseInt(this.dataset.next, 10);
+                    const nextAudio = document.querySelector(`audio[id="audio-${nextIndex}"]`);
+                    if (nextAudio) {
+                        playAudio(nextAudio);
+                    }
+                });
+
+                const progressBar = audio.closest('.music-item').querySelector('.progress-bar .progress');
+                audio.addEventListener('timeupdate', function() {
+                    const percent = (audio.currentTime / audio.duration) * 100;
+                    progressBar.style.width = percent + '%';
+                });
+            }
+
+            // Initialize the first audio to play
+            const firstAudio = document.querySelector('audio');
+            if (firstAudio) {
+                playAudio(firstAudio);
+            }
+        });
+
+
+    </script>
+</body>
+</html>
