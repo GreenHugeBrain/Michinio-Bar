@@ -141,7 +141,7 @@ def add_music(playlist_id):
     
     return render_template('add_music.html', form=form)
 
-@app.route('/playlist/<int:playlist_id>f', methods=['GET'])
+@app.route('/playlist/<int:playlist_id>', methods=['GET'])
 def playlist(playlist_id):
     if not current_user.is_authenticated:
         return redirect('/login')
