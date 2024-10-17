@@ -1,5 +1,5 @@
 from flask import Flask, render_template, redirect, request, send_from_directory, jsonify
-from flask_login import LoginManager, current_user, login_user, UserMixin
+from flask_login import LoginManager, current_user, login_user, UserMixin, logout_user
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, FileField, PasswordField
 from wtforms.validators import DataRequired, Length
@@ -8,12 +8,11 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import os
 from flask_migrate import Migrate
 
-
 app = Flask(__name__)
 db = SQLAlchemy()
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 app.config['SECRET_KEY'] = 'secret_key'
-app.config['UPLOAD_FOLDER'] = 'uploads'  # Specify the upload folder
+app.config['UPLOAD_FOLDER'] = 'uploads' 
 db.init_app(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -23,7 +22,7 @@ class Company(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), unique=True, nullable=False)
     password = db.Column(db.String(120), nullable=False)
-    playlist = db.relationship('Playlists', backref="company")
+    playlists = db.relationship('Playlists', backref="company")
 
 class Playlists(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
@@ -36,7 +35,7 @@ class Musics(db.Model, UserMixin):
     name = db.Column(db.String(80), unique=True, nullable=False)
     music = db.Column(db.String(120), nullable=False)
     playlist_id = db.Column(db.Integer, db.ForeignKey('playlists.id'), nullable=False)
-    order = db.Column(db.Integer, nullable=False)  # Add order column
+    order = db.Column(db.Integer, nullable=False)
 
 with app.app_context():
     db.create_all()
@@ -102,7 +101,7 @@ def company(company_id):
         return redirect('/login')
     company = Company.query.filter_by(id=company_id).first()
     playlists = Playlists.query.filter_by(company_id=company_id).all()
-    return render_template("company.html", company=company, playlist=playlists)
+    return render_template("company.html", company=company, playlists=playlists)
 
 @app.route('/create_playlist/<int:company_id>', methods=['GET', 'POST'])
 def create_playlist(company_id):
@@ -113,7 +112,7 @@ def create_playlist(company_id):
         playlist = Playlists(name=form.name.data, company_id=company_id)
         db.session.add(playlist)
         db.session.commit()
-        return redirect(f'/company/{company_id}')
+        return redirect('/')
     return render_template('create_playlist.html', form=form)
 
 @app.route('/add_music/<int:playlist_id>', methods=['GET', 'POST'])
@@ -124,28 +123,30 @@ def add_music(playlist_id):
     form = MusicsForm()
     
     if form.validate_on_submit():
-        music_files = request.files.getlist('music')  # Get all uploaded files
+        music_file = request.files['music']  # Get the uploaded file
         
-        for music_file in music_files:
-            if music_file:
-                music_filename = music_file.filename
-                music_name = music_filename  # Set the music name to the filename
-                # Save file to the 'uploads' directory
-                music_file.save(os.path.join(app.config['UPLOAD_FOLDER'], music_filename))
-                music = Musics(name=music_name, music=music_filename, playlist_id=playlist_id, order=Musics.query.filter_by(playlist_id=playlist_id).count())
-                db.session.add(music)
-        
-        db.session.commit()
-        return redirect(f'/playlist/{playlist_id}')
+        if music_file:
+            music_filename = music_file.filename
+            music_name = music_filename  # Set the music name to the filename
+            # Save file to the 'uploads' directory
+            music_file.save(os.path.join(app.config['UPLOAD_FOLDER'], music_filename))
+            
+            # Determine the order based on current count of music in the playlist
+            order = Musics.query.filter_by(playlist_id=playlist_id).count()
+            
+            music = Musics(name=music_name, music=music_filename, playlist_id=playlist_id, order=order)
+            db.session.add(music)
+            db.session.commit()
+            return redirect(f'/playlist/{playlist_id}')
     
     return render_template('add_music.html', form=form)
 
-@app.route('/playlist/<int:playlist_id>', methods=['GET'])
+@app.route('/playlist/<int:playlist_id>f', methods=['GET'])
 def playlist(playlist_id):
     if not current_user.is_authenticated:
         return redirect('/login')
     playlist = Playlists.query.filter_by(id=playlist_id).first()
-    musics = Musics.query.filter_by(playlist_id=playlist_id).order_by(Musics.order).all()
+    musics = Musics.query.filter_by(playlist_id=playlist_id).order_by(Musics.id).all()  # Sort by ID
     return render_template('playlist.html', playlist=playlist, musics=musics)
 
 @app.route('/uploads/<filename>')
@@ -153,16 +154,25 @@ def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 @app.route('/reorder', methods=['POST'])
-def reorder():
+def reorder_music():
     data = request.get_json()
-    new_order = data['order']
-    for index, item_id in enumerate(new_order):
-        music = Musics.query.get(item_id)
+    order = data.get('order', [])
+
+    # Update the order of each music item
+    for index, music_id in enumerate(order):
+        music = Musics.query.get(music_id)
         if music:
-            music.order = index
+            music.id = index  # Update the order based on the new position
             db.session.add(music)
-    db.session.commit()
+
+    db.session.commit()  # Commit the changes to the database
     return jsonify({'status': 'success'})
+
+@app.route('/logout')
+def logout():
+    logout_user()  # Flask-Login ფუნქცია, რომელიც იღებს სესიას
+    return redirect('/login')  # დაბრუნდება შესვლის გვერდზე
+
 
 if __name__ == '__main__':
     # Make sure the upload directory exists
